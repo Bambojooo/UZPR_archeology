@@ -1,0 +1,10 @@
+--stránka dat
+http://www.archeologickamapa.cz/?page=documents
+
+--mapa dat
+https://digiarchiv.aiscr.cz/results?kategorie=mplany
+
+--odkaz na stažení databáze
+http://www.archeologickamapa.cz/downloads/ADC2017.mdb
+
+

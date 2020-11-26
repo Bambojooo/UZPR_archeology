@@ -1,0 +1,185 @@
+--buffer kolem okresu
+select (st_buffer(geom, 1000)) from okresy where fid = 1;
+
+
+--pocet pozarnich stanic v pisku
+select count(*) from pozarni_stanice 
+join okresy on nazev = 'Písek' and st_within(pozarni_stanice.geom,okresy.geom)
+
+--obce s poctem polygonu
+select nazev,(st_numgeometries(geom))  from obce  order by 2 desc 
+
+--linie kolem polygonu 
+select st_exteriorring(geom) from kraje where nazev = 'Středočeský'
+
+===================================================================
+--select count(*) from ar.vodniplochy where typ = 2 --cv1
+--select sum(shape_length)/1000 from ar.vodnitoky where typ = 1 --cv2
+--select avg(vyska) from ar.vodniplochy where typ = 1 --cv3
+--select count(*) from ar.silnice_2015 where pruhy > 2 --cv4
+--select sum(shape_length)/1e3 from ar.silnice_2015 where pruhy =6 and trida = 1 --cv5
+--select count(*) from ar.zeleznicnistanice where nazev like '%nad%' --cv6
+select naz_obec, mira_nezam from ac.obcepolygony where naz_cznuts3 = 'Ústecký kraj' order by 2 desc limit 1 --cv8
+===================================================================
+--pocet pozarnich stanic v obdelniku 20km kolem bodu -758603.63 -1098304.35
+select count(*) from osm.pozarni_stanice as p where 
+p.geom @ st_expand(
+st_geomfromtext('POINT(-758603.63 -1098304.35)',5514),20e3);
+
+--pocet pozarnich stanic v okruuhh 20km
+select count(*) from osm.pozarni_stanice as p where p.geom <#> st_geomfromtext('POINT(-758603.63 -1098304.35)', 5514) < 20e3;
+
+-- silnice v obdelniku usteckyho kraje        
+select count(*) from osm.silnice as s join 
+(select * from ruian.vusc where nutslau = 'CZ042') as k
+on s.geom @ k.geom
+
+--ohranicujici obdelnik
+select st_envelope(geom) from ruian.vusc where nutslau = 'CZ042'
+
+--nejjiznejsi
+select (geom) from osm.pozarni_stanice
+order by st_y(geom) asc
+limit 1
+
+--kraj s oknem
+select nazev, st_area(geom)/1e6 as plocha  from ruian.vusc where st_nrings(geom) > 1
+
+--nevim co to je
+select nazev, st_pointonsurface(geom) from ruian.vusc
+
+--pozarnis stanice kilometry (3) od hranic kladna
+select count(*) from osm.pozarni_stanice as ps join 
+(select * from ruian.obce where nazev = 'Kladno' order by st_area(geom) desc limit 1) as k
+on st_distance(ps.geom,k.geom) < 10e3
+
+--pozarni stanice 3 kilometry od stredu bboxu kladna
+select count(*) from osm.pozarni_stanice as ps join 
+(select * from ruian.obce where nazev = 'Kladno' order by st_area(geom) desc limit 1) as k
+on ps.geom <#> k.geom <10e3
+
+select count(*)  from osm.pozarni_stanice as p where st_distance(p.geom, 
+(select geom from osm.silnice order by st_length(geom) desc limit 1)) <10e3
+
+with d as
+(select geom from osm.silnice order by st_length(geom) desc limit 1)
+select count(*) from osm.pozarni_stanice as p join d on st_distance(p.geom,d.geom) < 10e3
+
+--delka mezi nejzapadnejsi a nejvychodnejsi pozarni stanice 
+select st_distance(
+(select geom from osm.pozarni_stanice order by st_x(geom) asc limit 1),
+(select geom from osm.pozarni_stanice order by st_x(geom) desc limit 1))
+
+--silnice v ustecekm kraji
+select z.* from osm.zeleznice as z 
+join ruian.vusc as k 
+on k.nutslau = 'CZ042' and st_contains(k.geom,z.geom)
+
+--deka silnic v krajich
+select k.nazev,sum(st_length(z.geom))/1e3 as delka from osm.zeleznice as z 
+join ruian.vusc as k 
+on  st_intersects(k.geom,z.geom)
+group by k.nazev
+order by delka desc
+
+===================================================================
+
+
+insert into zo values(1,'prvni',st_geomfromtext('point(15 49)',4326));
+create table zo (id serial, nazev varchar(255), geom geometry(point,4326))
+select * from geometry_columns where f_table_schema = 'simek'
+alter table zo add primary key (id) --nastaveni sloupce id jako primary key
+
+
+--krizeni 4 zeleznic
+select count(*), st_astext(geom) from 
+(
+select st_startpoint(geom) as geom from osm.zeleznice
+union all
+select st_endpoint(geom) as geom from osm.zeleznice
+) as foo
+
+group by geom having count(*)=4
+
+--nalezeni vsech polygonu multipolygonu 
+select st_geometryn(geom,generate_series(1,st_numgeometries(geom))) from ruian.obce where st_numgeometries(geom) = 4
+select st_dump(geom) from ruian.obce where st_numgeometries(geom) = 4
+select nazev, (st_dump(geom)).* from ruian.obce where st_numgeometries(geom) = 3
+
+--rybniky v jihoceskem kraji 
+select count(*) from 
+ar.vodniplochy as s
+join
+ac.krajepolygony as t
+on s.typ = 2 and t.kod_cznuts3 = 'CZ031' and st_within(s.geom,t.geom)
+
+
+===================================================================
+--zeleznicni stanice v lese
+select count(*) from ar.zeleznicnistanice as z join ar.lesy as l 
+on z.nazev not like 'L%' and st_intersects(z.geom,l.geom)
+
+-- pocet vodnich ploch okoli poledniku 15°
+select count(*) from ar.vodniplochy as v
+join ar.zemepisnasitwgs84 as z
+on z.delka_dd=15 and st_intersects(v.geom,st_buffer(st_transform(z.geom,5514),10000))
+
+with d as
+(select st_transform(geom,5514) as geom from ar.zemepisnasitwgs84 as z where z.delka_dd = 15)
+select count(*) from ar.vodniplochy as v join d on st_intersects(v.geom,st_buffer(d.geom,10e3))
+
+
+
+--pocet katastralnich uyemi kde je vodni plocha
+select count(distinct k.objectid) from ac.katastralniuzemipolygony as k 
+join ar.vodniplochy as v on st_intersects(k.geom, v.geom)
+
+--pocet obci kudy neprochazi silnice
+select count(*) from ac.obcepolygony where objectid not in 
+(
+select distinct o.objectid from ac.obcepolygony as o
+join ar.silnice_2015 as s
+on st_intersects(o.geom, s.geom)
+)
+--optimalizace
+select count(*) from ac.obcepolygony as o where not exists
+(
+select * from ar.silnice_2015 as s where st_intersects(o.geom, s.geom)
+)
+
+===================================================================
+--
+create table baziny_lesy4 as select geom from
+
+ (
+
+ select (st_dump(st_intersection(b.geom, st_buffer(l.geom, 0)))).geom as geom
+
+ from ar.bazinyaraseliniste as b
+
+ join ar.lesy as l
+
+ on st_intersects(b.geom, l.geom)
+
+ ) as foo
+
+ where st_dimension(geom) > 1;
+ 
+ ===================================================================
+ 
+ --SELECT topology.CreateTopology('topo_p2');
+--SELECT topology.AddTopoGeometryColumn('topo_p2_simek', 'simek', 'p2', 'topo', 'POLYGON');
+--UPDATE p2 SET topo = topology.toTopoGeom(geom, 'topo_p2_simek', 1);
+--select * from p2
+--select *,st_astext(geom) from topo_p2_simek.edge;
+
+
+
+--create table parcely as select * from ruian_praha.parcely where katastralniuzemikod = 728071
+--create index on parcely using gist(geom)
+--alter table parcely add primary key (ogc_fid)
+
+--select topology.createtopology('topo_par_simek')
+--select * from topo_par_simek.node
+--select topology.AddTopoGeometryColumn('topo_par_simek', 'simek', 'parcely', 'topo', 'POLYGON');
+--update parcely set topo = topology.totopogeom(geom,'topo_par_simek',1,0.1)
