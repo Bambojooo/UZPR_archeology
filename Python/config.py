@@ -28,10 +28,12 @@ UZPR_PROJEKT = {
 DATA_DIRPATH = os.path.dirname(__file__) + "\..\\data\\tabulky\\"
 
 DATA_FILEPATHS = {
-        'prvni': DATA_DIRPATH + 'ADB.csv',
+        'ADB': DATA_DIRPATH + 'ADB.csv',
+        'SOURAD_ADB': DATA_DIRPATH + 'SOURAD_ADB.csv',
+        'SOURAD': DATA_DIRPATH + 'SOURAD.csv',
 }
 
 ARCH_CONDITIONS = {
-    'unique': ['KOD','PORC_ADB'],
-    'ints': ['CIS_ADB', 'CP'],
+    'UNIQUE': ['KOD','PORC_ADB','PORC_SOUR'],
+    'INTS': ['CIS_ADB', 'CP','X_JTSK','Y_JTSK'],
 }
