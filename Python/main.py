@@ -16,6 +16,8 @@ Queries are used for these tables with S-JTSK coordinates: sourad_adb (SOURAD_AD
 
 
 SELECT * FROM geometry_columns WHERE f_table_name='pokus';
+
+
 """
 
 import psycopg2
@@ -24,6 +26,7 @@ import csv
 import pandas
 import os
 import ntpath
+import time
 
 from config import UZPR_PROJEKT, UZPR, LOG_LEVEL, LOG_FORMAT, DATA_FILEPATHS, ARCH_CONDITIONS
 
@@ -42,7 +45,10 @@ class DB(Files):
     # vytvori pripojeni, posle davku a uzavre spojeni s databazi
     def send_query(self, dbParametrs: dict, query: str, catchResult: bool = False, integerResult = False):
         """
-        Initalize a connection with a database, send query a close the connection.
+        Initalize a connection with a database, send query and close the connection.
+        Input: database parameters in order: host, database, user, password, port; sql query; catch result bool - whether you want the result to be returned; 
+               integer result bool - expects result to be an integer than this method return integer value (true catchResult required)
+        Output (only if catchResult is set true): sql query result
         """
         conn = psycopg2.connect(
                 host = dbParametrs['host'],
@@ -57,13 +63,17 @@ class DB(Files):
 
         try:
             cur = conn.cursor()
+            beginTime = time.time()
             cur.execute(query)
+            endTime = time.time()
+            timePeriod = endTime-beginTime
+            loggerStd.info('Elapsed time: {}'.format(timePeriod))
             loggerStd.debug('Cursor description: {}'.format(cur.description))
             loggerStd.debug('Cursor status message: {}'.format(cur.statusmessage))
             
             if cur.description != None:
                 for result in cur.fetchall():
-                    loggerStd.info('Ok result: {}'.format(result))
+                    loggerStd.info('Fetched query results: {}'.format(result))
                     if catchResult:
                         if integerResult:
                             results.append(int(result[0]))
@@ -81,6 +91,7 @@ class DB(Files):
         # except psycopg2.errors.SyntaxError:
         #     loggerStd.error('Syntax Error with query: {}'.format(query))
         conn.close()
+        print()
 
         if catchResult:
             return results
@@ -163,18 +174,51 @@ class DB(Files):
             # cur.copy_from(f, fileNameStriped, sep=';')
 
         conn.close()
-                
+
+
     def get_buffer_count(self, dbParameters: dict, targetFeature: str, bufferFeature: str, buffer: float):
         """
-
+        Gets number of target features in buffer of buffer-features.
+        Input: database parameters in order: host, database, user, password, port; DB table with features to be counted; 
+               DB table with buffered features; buffer radius
+        Output: counted target features in buffer zone
         """
         query = '''SELECT count(*)                                  
                    FROM   {} as targetFeautre                       
                    JOIN   {} as bufferFeautre                       
-                   ON     targetFeautre.geom && bufferFeautre.geom  
-                   AND    st_intersects(targetFeautre.geom, st_buffer(bufferFeautre.geom, {}));'''.format(targetFeature, bufferFeature, buffer)     
+                   ON     targetFeautre.geom @ bufferFeautre.geom  
+                   AND    st_within(targetFeautre.geom, st_buffer(bufferFeautre.geom, {}));'''.format(targetFeature, bufferFeature, buffer)     
         result = self.send_query(dbParameters, query, True, True)           
         return result
+
+
+    def get_bufferZones_count(self, dbParameters: dict, zoneWidth: float, zoneAmount: int, targetFeature: str, bufferFeature: str):
+        """
+        Gets number of target features in each buffer zone of buffer-features.
+        Input: database parameters in order: host, database, user, password, port; width of zones, amount of zones;
+               DB table with features to be counted; DB table with buffered features 
+        Output:
+        """
+        results = []
+        previous = False
+        suma = 0
+
+        beginTime = time.time()
+        for zone in range(zoneWidth, zoneWidth*zoneAmount+1, zoneWidth):
+            results.append([self.get_buffer_count(UZPR_PROJEKT, targetFeature, bufferFeature, zone), zone])
+        endTime = time.time()
+
+        for result in results:
+            if previous:
+                print("Current buffer zone: [{}m - {}m]; Amout of archeology spots: {}". format(result[1]-100, result[1], int(result[0][0])-suma))
+            else:
+                print("Current buffer zone: [{}m - {}m]; Amout of archeology spots: {}". format(result[1]-100, result[1], int(result[0][0])))
+            previous = int(result[0][0]) - suma
+            suma = suma + previous
+        print('Total spots: {}'.format(suma))
+        
+        timePeriod = endTime-beginTime
+        loggerStd.info('Total elapsed time: {}'.format(timePeriod))
 
 # 1) ošéfuj to že tam stříleli znamínka souřadnic hlava nehlava
 # 2) je tam jedna oblast která je posunuta mimo ČR
@@ -184,41 +228,8 @@ class DB(Files):
 def main():
 
     database = DB()
-
-    # import queries
-    # database.import_csv(UZPR_PROJEKT,DATA_FILEPATHS['ADB'])
-
-
-    # check queries
-    # query = 'SELECT * from sourad limit 1;'
-    # query = 'SELECT table_name FROM information_schema.tables;'
-    # query = "SELECT * FROM information_schema.tables where table_name = 'adb';"
-    # query = "SELECT * FROM information_schema.tables where table_schema = 'uzpr21_b';"
-
-    # query = "SELECT AddGeometryColumn ('pokus','geom',5514,'POINT',2);"
-
-    # query = "SELECT * FROM geometry_columns WHERE f_table_name='pokus';"
-    # query = 'ALTER TABLE uzpr21_b.pokus ALTER y_jtsk TYPE double precision USING y_jtsk::double precision;'
-
-    # query = 'DROP TABLE adb;'
-    
-    # database.send_query(UZPR_PROJEKT, query)
-
-    results = []
-    previous = False
-    suma = 0
-
-    for zone in range(100, 1001, 100):
-        results.append([database.get_buffer_count(UZPR_PROJEKT, "sourad", "vodnitoky", zone), zone])
-        
-    for result in results:
-        if previous:
-            print("Current buffer zone: [{}m - {}m]; Amout of archeology spots: {}". format(result[1]-100, result[1], int(result[0][0])-suma))
-        else:
-            print("Current buffer zone: [{}m - {}m]; Amout of archeology spots: {}". format(result[1]-100, result[1], int(result[0][0])))
-        previous = int(result[0][0]) - suma
-        suma = suma + previous
-    print('Total: {}'.format(suma))
+    # database.get_bufferZones_count(UZPR_PROJEKT, 100, 10, "sourad", "vodnitoky")
+    # database.get_bufferZones_count(UZPR_PROJEKT, 100, 10, "sourad", "sidlaplochy")
 
 
 
