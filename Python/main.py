@@ -37,6 +37,11 @@ loggerStd.setLevel(LOG_LEVEL)
 class Files():
 
     def path_leaf(path):
+        """
+        Extracts file name from given file path.
+        Input: file path
+        Output: file name
+        """
         head, tail = ntpath.split(path)
         return tail.lower() or ntpath.basename(head).lower()   
 
@@ -97,21 +102,21 @@ class DB(Files):
             return results
 
 
-    def create_table(self, dbParametrs: dict, tableName: str, scheme: str):
+    def create_table(self, dbParametrs: dict, tableName: str, atributes: str):
         """
         Creates table in db.
         """
         self.tableName = tableName
-        query = 'CREATE TABLE IF NOT EXISTS {} ({})'.format(tableName, scheme)
+        query = 'CREATE TABLE IF NOT EXISTS {} ({})'.format(tableName, atributes)
         self.send_query(dbParametrs, query)
 
-    def create_scheme(columnss: list, CONDITIONS: dict):
+    def create_atributes(columnss: list, CONDITIONS: dict):
         """
-        Import data from csv file into newly created db table. Takes first row of the file as names of columns.
+        Import data from csv file into newly created db table. Takes first row of the file as atributes.
         Input: list of columns, list of conditions (which columns are primary keys, integers, text, etc.)
-        Output: scheme string (format: column1 type, column2 type,...)
+        Output: atributes string (format: column1 type, column2 type,...)
         """
-        scheme = ''
+        atributes = ''
         unique = ''
         for columns in columnss:
             for column in columns.split(';'):
@@ -127,18 +132,18 @@ class DB(Files):
                     if columnStriped in CONDITIONS['UNIQUE']:
                         unique = unique + columnStriped + ', '
                     
-                scheme = scheme+columnStriped+ ' ' +columnType+', '
+                atributes = atributes+columnStriped+ ' ' +columnType+', '
                 
 
-        # return either scheme with UNIQUE constraint or without it
+        # return either table atributes with UNIQUE constraint or without it
         if unique != '':
             unique = 'UNIQUE ({})'.format(unique[:-2])
-            loggerStd.info('Table scheme: {}'.format(scheme + unique))
-            return scheme + unique
+            loggerStd.info('Table columns: {}'.format(atributes + unique))
+            return atributes + unique
         else:
-            # returns scheme without last two symbols which are ', '
-            loggerStd.info('Table scheme: {}'.format(scheme[:-2]))        
-            return scheme[:-2]
+            # returns table atributes without last two symbols which are ', '
+            loggerStd.info('Table columns: {}'.format(atributes[:-2]))        
+            return atributes[:-2]
 
     def import_csv(self, dbParametrs: dict, filePath: str):
         """
@@ -156,6 +161,7 @@ class DB(Files):
             port = dbParametrs['port'])
         cur = conn.cursor()
 
+        # extract csv filename
         fileNameStriped = Files.path_leaf(filePath).strip('.csv')
         loggerStd.debug('Extracted CSV filename: {}'.format(fileNameStriped))
 
@@ -165,11 +171,11 @@ class DB(Files):
             # Skip the header row and save it 
             csvHeader = next(reader) 
 
-            # creates table scheme (input of create table method)
-            tableScheme = DB.create_scheme(csvHeader, ARCH_CONDITIONS)
+            # creates table atributes (input of create table method)
+            tableAtributes = DB.create_atributes(csvHeader, ARCH_CONDITIONS)
 
             # create table named after file name
-            self.create_table(dbParametrs, fileNameStriped, tableScheme)
+            self.create_table(dbParametrs, fileNameStriped, tableAtributes)
 
             # cur.copy_from(f, fileNameStriped, sep=';')
 
@@ -204,10 +210,13 @@ class DB(Files):
         suma = 0
 
         beginTime = time.time()
+
+        # send query for each zone
         for zone in range(zoneWidth, zoneWidth*zoneAmount+1, zoneWidth):
             results.append([self.get_buffer_count(UZPR_PROJEKT, targetFeature, bufferFeature, zone), zone])
         endTime = time.time()
 
+        # print query results
         for result in results:
             if previous:
                 print("Current buffer zone: [{}m - {}m]; Amout of archeology spots: {}". format(result[1]-100, result[1], int(result[0][0])-suma))
@@ -220,18 +229,71 @@ class DB(Files):
         timePeriod = endTime-beginTime
         loggerStd.info('Total elapsed time: {}'.format(timePeriod))
 
-# 1) ošéfuj to že tam stříleli znamínka souřadnic hlava nehlava
-# 2) je tam jedna oblast která je posunuta mimo ČR
-# 3) A je tam jeden bod o souřadnici 0 0
 
+    def get_stuff_quantity(self, dbParameters: dict, table: str, targetStuff: str, tolerancy: int):
+        """
+        Get grouped target stuff histogram.
+        Input:
+        Output:
+        """
+        query =  """SELECT {}, count({})
+                    FROM {}
+                    GROUP by {} 
+                    HAVING count({}) > {}
+                    ORDER BY count({}) DESC;""".format(targetStuff, targetStuff, table, targetStuff, targetStuff, tolerancy, targetStuff)
+        results = self.send_query(dbParameters, query, True, False)
+        
+        for result in results:
+            print("{}: {}".format(result[0], result[1]))
+            # print("Target stuff: {}; Quantity: {}".format(result[0], result[1]))
+
+    def get_area_count(self, dbParameters: dict, targetFeature: str, areaFeature: int):
+        """
+        
+        Input:
+        Output:
+        """
+        query =  """SELECT count(*)
+                    FROM {} as s
+                    JOIN {} as u
+                    ON s.geom @ u.geom
+                    AND st_within(s.geom, u.geom);""".format(targetFeature, areaFeature)
+        result = self.send_query(dbParameters, query, True, True)
+        print("Total: {}".format(result[0]))
+
+    def get_intersected_area_count(self, dbParameters: dict, targetFeature: str, areaFeature1: int, areaFeature2: int):
+        """
+        
+        Input:
+        Output:
+        """
+        query =  """SELECT count(*) 
+                    FROM (
+                        SELECT s.geom
+                        FROM {} as s
+                        JOIN {} as u
+                        ON s.geom @ u.geom
+                        AND st_within(s.geom, u.geom)
+                    ) as s
+                    JOIN {} as u
+                    ON s.geom @ u.geom
+                    AND st_within(s.geom, u.geom)""".format(targetFeature, areaFeature1, areaFeature2)
+        result = self.send_query(dbParameters, query, True, True)
+        print("Total: {}".format(result[0]))
 
 def main():
 
     database = DB()
+
+    # Buffer analyses. Estimated time 550 seconds each
     # database.get_bufferZones_count(UZPR_PROJEKT, 100, 10, "sourad", "vodnitoky")
     # database.get_bufferZones_count(UZPR_PROJEKT, 100, 10, "sourad", "sidlaplochy")
+    # database.get_stuff_quantity(UZPR_PROJEKT, "nalezy", "specif", 10)
+    # database.get_area_count(UZPR_PROJEKT, "sourad", "aopk.velkoplosna_chranena_uzemi")
+    # database.get_area_count(UZPR_PROJEKT, "sourad", "aopk.maloplosna_chranena_uzemi")
+    # database.get_intersected_area_count(UZPR_PROJEKT, "sourad", "aopk.maloplosna_chranena_uzemi","aopk.velkoplosna_chranena_uzemi")
 
-
+    print(13471 + 2334 - 820)
 
 if __name__ == '__main__':
     main()
