@@ -48,7 +48,7 @@ class Files():
 class DB(Files):
 
     # vytvori pripojeni, posle davku a uzavre spojeni s databazi
-    def send_query(self, dbParametrs: dict, query: str, catchResult: bool = False, integerResult = False):
+    def send_query(self, dbParametrs: dict, query: str, catchResult: bool = False, integerResult: bool = False):
         """
         Initalize a connection with a database, send query and close the connection.
         Input: database parameters in order: host, database, user, password, port; sql query; catch result bool - whether you want the result to be returned; 
@@ -293,7 +293,36 @@ def main():
     # database.get_area_count(UZPR_PROJEKT, "sourad", "aopk.maloplosna_chranena_uzemi")
     # database.get_intersected_area_count(UZPR_PROJEKT, "sourad", "aopk.maloplosna_chranena_uzemi","aopk.velkoplosna_chranena_uzemi")
 
-    print(13471 + 2334 - 820)
+
+    # Histogram of arch. spots in regions
+    query = """ SELECT k.text, count(*)
+                FROM sourad as s
+                FULL JOIN inspire_au as k
+                ON s.geom @ k.geom
+                AND st_within(s.geom, k.geom)
+                WHERE k.localisedcharacterstring = 'Kraj'
+                GROUP BY k.text;"""
+
+    # Histogram of arch. spots in municipalities
+    query = """ SELECT k.text, count(*)
+                FROM sourad as s
+                FULL JOIN inspire_au as k
+                ON s.geom @ k.geom
+                AND st_within(s.geom, k.geom)
+                WHERE k.localisedcharacterstring = 'Obec'
+                GROUP BY k.text
+                ORDER BY count(s.geom) DESC
+                LIMIT 20;"""
+
+    # Histogram of arch. spots in time periods
+    query = """ SELECT field_2, count(*)
+                FROM komponen as k
+                JOIN doby1 as d
+                ON k.kult =  d.kult
+                GROUP BY field_2
+                ORDER BY count(*) DESC;"""
+
+    # database.send_query(UZPR_PROJEKT, query)
 
 if __name__ == '__main__':
     main()
