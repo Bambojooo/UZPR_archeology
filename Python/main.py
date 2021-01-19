@@ -249,7 +249,7 @@ class DB(Files):
 
     def get_area_count(self, dbParameters: dict, targetFeature: str, areaFeature: int):
         """
-        
+        Get quantity of target feature in given area.
         Input:
         Output:
         """
@@ -285,9 +285,16 @@ def main():
 
     database = DB()
 
-    # Buffer analyses. Estimated time 550 seconds each
+    # Test of validity
+    query = """ SELECT st_isvalid(sourad.geom) as valid
+                FROM sourad 
+                WHERE st_isvalid(sourad.geom) IS NOT TRUE;"""
+
+    # Buffer analyzes. Estimated time 550 seconds each
     # database.get_bufferZones_count(UZPR_PROJEKT, 100, 10, "sourad", "vodnitoky")
     # database.get_bufferZones_count(UZPR_PROJEKT, 100, 10, "sourad", "sidlaplochy")
+
+    # Other analyzes
     # database.get_stuff_quantity(UZPR_PROJEKT, "nalezy", "specif", 10)
     # database.get_area_count(UZPR_PROJEKT, "sourad", "aopk.velkoplosna_chranena_uzemi")
     # database.get_area_count(UZPR_PROJEKT, "sourad", "aopk.maloplosna_chranena_uzemi")
@@ -320,6 +327,15 @@ def main():
                 JOIN doby1 as d
                 ON k.kult =  d.kult
                 GROUP BY field_2
+                ORDER BY count(*) DESC;"""
+
+    # Histogram of arch. spots in Prague townships
+    query = """ SELECT o.nazev, count(*)
+                FROM sourad  as s
+                JOIN ruian_praha.spravniobvody as o
+                ON s.geom @ o.geom
+                AND st_within(s.geom, o.geom)
+                GROUP BY o.nazev
                 ORDER BY count(*) DESC;"""
 
     # database.send_query(UZPR_PROJEKT, query)
