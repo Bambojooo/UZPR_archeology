@@ -1,11 +1,16 @@
 """
+Program for sending SQL quries in PostGIS. This program is part of semestral thesis in UZPR subject.
+More info in documentation or on the website of AMCR project: http://www.archeologickamapa.cz/?page=project
+
 Order of used queries right inside QGIS database manager because of malfunction of editing here from python. 
 Queries are used for these tables with S-JTSK coordinates: sourad_adb (SOURAD_ADB.csv), sourad (SOURAD.csv)
 
     ===sourad===
 1) SELECT AddGeometryColumn ('sourad','geom',5514,'POINT',2);
-2) ALTER TABLE uzpr21_b.sourad ALTER x_jtsk TYPE double precision USING x_jtsk::double precision;
-3) ALTER TABLE uzpr21_b.sourad ALTER y_jtsk TYPE double precision USING y_jtsk::double precision;
+2)  ALTER TABLE uzpr21_b.sourad 
+    ALTER x_jtsk TYPE double precision USING x_jtsk::double precision;
+3)  ALTER TABLE uzpr21_b.sourad 
+    ALTER y_jtsk TYPE double precision USING y_jtsk::double precision;
 4) UPDATE sourad SET geom = ST_SetSRID(ST_MakePoint(-y_jtsk, -x_jtsk), 5514);
 
     ===sourad_adb===
@@ -197,7 +202,7 @@ class DB(Files):
         result = self.send_query(dbParameters, query, True, True)           
         return result
 
-
+        
     def get_bufferZones_count(self, dbParameters: dict, zoneWidth: float, zoneAmount: int, targetFeature: str, bufferFeature: str):
         """
         Gets number of target features in each buffer zone of buffer-features.
@@ -241,9 +246,9 @@ class DB(Files):
                     FROM {}
                     GROUP by {} 
                     HAVING count({}) > {}
-                    ORDER BY count({}) DESC;""".format(targetStuff, targetStuff, table, targetStuff, targetStuff, tolerancy, targetStuff)
-        results = self.send_query(dbParameters, query, True, False)
-        
+                    ORDER BY count({}) DESC;""".format(targetAtribute, targetAtribute, table, targetAtribute, targetAtribute, tolerancy, targetAtribute)
+        results = self.send_query(dbParameters, query, True, False)     
+
         for result in results:
             print("{}: {}".format(result[0], result[1]))
             # print("Target stuff: {}; Quantity: {}".format(result[0], result[1]))
@@ -261,6 +266,7 @@ class DB(Files):
                     AND st_within(s.geom, u.geom);""".format(targetFeature, areaFeature)
         result = self.send_query(dbParameters, query, True, True)
         print("Total: {}".format(result[0]))
+
 
     def get_intersected_area_count(self, dbParameters: dict, targetFeature: str, areaFeature1: int, areaFeature2: int):
         """
@@ -282,6 +288,7 @@ class DB(Files):
                     AND st_within(s.geom, u.geom)""".format(targetFeature, areaFeature1, areaFeature2)
         result = self.send_query(dbParameters, query, True, True)
         print("Total: {}".format(result[0]))
+
 
 def main():
 
@@ -340,7 +347,7 @@ def main():
                 GROUP BY o.nazev
                 ORDER BY count(*) DESC;"""
 
-    # database.send_query(UZPR_PROJEKT, query)
+    database.send_query(UZPR_PROJEKT, query)
 
 if __name__ == '__main__':
     main()
