@@ -127,3 +127,17 @@ bar(X,pocet)
 title('Pocet nalezu podle druhu')
 ylabel('Pocet nalezu')
 xlabel('Druh')
+
+%% doby
+
+tab=readtable('c:\Users\Jakub\Desktop\skola\magister\uzpr\doby_tab.csv');
+rozmezi=table2cell(tab(:,1));
+pocet=table2array(tab(:,2))
+X=categorical(rozmezi);
+X=reordercats(X,rozmezi);
+
+figure(4)
+bar(X,pocet)
+title('Pocet nalezu podle kultury')
+ylabel('Pocet nalezu')
+xlabel('Kultura')

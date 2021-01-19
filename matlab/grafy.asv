@@ -3,7 +3,7 @@ format long g
 
 %% vodni toky
 
- rozmezi='0m -   100m',  
+ rozmezi={'0m -   100m',  
  '100m -   200m', 
  '200m -   300m',  
  '300m -   400m', 
@@ -12,7 +12,7 @@ format long g
  '600m -   700m',  
  '700m -   800m',  
  '800m -   900m', 
- '900m - 1000m'  ;
+ '900m - 1000m' } ;
 
 X=categorical(rozmezi);
 X=reordercats(X,rozmezi);
@@ -86,8 +86,7 @@ rozmezi={'keramika'
 'kamenina'
 'paroh' 
 'kámen-stav.' 
-'kůže' 
-
+'kůže' }
 pocet=[58657
 6452
 6328
@@ -118,5 +117,26 @@ pocet=[58657
 253
 248
 246
-206]
+206];
 
+X=categorical(rozmezi);
+X=reordercats(X,rozmezi);
+
+figure(3)
+bar(X,pocet)
+title('Pocet nalezu podle druhu')
+ylabel('Pocet nalezu')
+xlabel('Druh')
+
+%% doby
+
+tab=readtable('c:\Users\Jakub\Desktop\skola\magister\uzpr\doby_tab.csv');
+rozmezi=table2cell(tab(:,1))
+X=categorical(rozmezi);
+X=reordercats(X,rozmezi);
+
+figure(3)
+bar(X,pocet)
+title('Pocet nalezu podle druhu')
+ylabel('Pocet nalezu')
+xlabel('Druh')
