@@ -230,11 +230,12 @@ class DB(Files):
         loggerStd.info('Total elapsed time: {}'.format(timePeriod))
 
 
-    def get_stuff_quantity(self, dbParameters: dict, table: str, targetStuff: str, tolerancy: int):
+    def get_atribute_histogram(self, dbParameters: dict, table: str, targetAtribute: str, tolerancy: int):
         """
-        Get grouped target stuff histogram.
-        Input:
-        Output:
+        Get grouped target atribute histogram.
+        Input: database parameters in order: host, database, user, password, port; DB table; counting atribute; 
+        tolerancy - minimum amount number for including atrinute in histogram
+        Output: target atribute; quantity of target atribute
         """
         query =  """SELECT {}, count({})
                     FROM {}
@@ -250,8 +251,8 @@ class DB(Files):
     def get_area_count(self, dbParameters: dict, targetFeature: str, areaFeature: int):
         """
         Get quantity of target feature in given area.
-        Input:
-        Output:
+        Input: database parameters in order: host, database, user, password, port; counting feature; area of feature to involve
+        Output: quantity
         """
         query =  """SELECT count(*)
                     FROM {} as s
@@ -263,9 +264,10 @@ class DB(Files):
 
     def get_intersected_area_count(self, dbParameters: dict, targetFeature: str, areaFeature1: int, areaFeature2: int):
         """
-        
-        Input:
-        Output:
+        Get quantity of target feature in intersection of given 2 areas.
+        Input: database parameters in order: host, database, user, password, port; counting feature; 
+        area 1 for intersection; area 2 for intersection
+        Output: quantity
         """
         query =  """SELECT count(*) 
                     FROM (
@@ -295,7 +297,7 @@ def main():
     # database.get_bufferZones_count(UZPR_PROJEKT, 100, 10, "sourad", "sidlaplochy")
 
     # Other analyzes
-    # database.get_stuff_quantity(UZPR_PROJEKT, "nalezy", "specif", 10)
+    # database.get_atribute_histogram(UZPR_PROJEKT, "nalezy", "specif", 10)
     # database.get_area_count(UZPR_PROJEKT, "sourad", "aopk.velkoplosna_chranena_uzemi")
     # database.get_area_count(UZPR_PROJEKT, "sourad", "aopk.maloplosna_chranena_uzemi")
     # database.get_intersected_area_count(UZPR_PROJEKT, "sourad", "aopk.maloplosna_chranena_uzemi","aopk.velkoplosna_chranena_uzemi")
